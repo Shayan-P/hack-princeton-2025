@@ -14,11 +14,24 @@ import io
 import cv2
 import numpy as np
 import PIL
+from PIL import ImageEnhance, Image
 
 app = FastAPI()
 
 
 predictor = SignLanguagePredictor('./model_with_ok.p') # hardcoded for now
+
+def adjust_brightness(image, factor):
+    r"""
+    factor > 1 : making the image brighter
+    factor < 1 : making the image darker
+    """
+    try:
+        enhancer = ImageEnhance.Brightness(image)
+        brightened_image = enhancer.enhance(factor)
+        return brightened_image
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 
 def pil_to_base64(img: Image.Image):
@@ -36,8 +49,9 @@ async def classify_character(image: UploadFile = File(...)):
     
     # Create a PIL Image from the bytes
     img = Image.open(io.BytesIO(contents))
-    
+    img = adjust_brightness(img, 0.7)
     frame = np.array(img.convert('RGB'))
+    
     prediction, frame_with_prediction = predictor.predict(frame)
 
     if (prediction is None) or (frame_with_prediction is None):
