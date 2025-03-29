@@ -1,6 +1,10 @@
 import os
 from google import genai
 from typing import List
+import dotenv
+
+dotenv.load_dotenv()
+
 
 class Message:
     r"""
