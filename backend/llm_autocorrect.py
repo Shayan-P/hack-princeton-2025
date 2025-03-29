@@ -17,11 +17,7 @@ class Message:
 
     def __bool__(self):
         return self.user_prompt is not None
-    def __bool__(self):
-        return self.user_prompt is not None
 
-    def add_chunk(self, text: str):
-        self.model_chunks.append(text)
     def add_chunk(self, text: str):
         self.model_chunks.append(text)
 
@@ -30,11 +26,7 @@ class Message:
         for chunk in self.model_chunks:
             ret += chunk
         return ret
-    def get_model_output(self):
-        ret = ""
-        for chunk in self.model_chunks:
-            ret += chunk
-        return ret
+
 
 class LLMAutocorrectWord:
 

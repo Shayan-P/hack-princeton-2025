@@ -8,11 +8,9 @@ import base64
 import json
 from io import BytesIO
 from PIL import Image
-import traceback
 import requests
-import base64
 
-from llm_autocorrect import LLMAutocorrectWord, complete_subtitle
+from llm_autocorrect import LLMAutocorrectWord
 
 SUBTITLE_MAX_LENGTH = 30
 CLASSIFY_BUFFER_LENGTH = 10
@@ -21,37 +19,20 @@ llm = LLMAutocorrectWord(api = API_KEY)
 
 app = FastAPI()
 
-def base64_to_pil(base64_string):
-    if(base64_string.startswith('data:')):
-        base64_string = "".join(base64_string.split(',')[1:])
-
-    image_data = base64.b64decode(base64_string)
-    image = Image.open(BytesIO(image_data))
-    image = image.convert('RGB')
-
-    img_byte_arr = BytesIO()
-    image.save(img_byte_arr, format='JPEG')
-    image = Image.open(img_byte_arr)
-
-    return image
-
 def pil_to_base64(img: Image.Image):
     img_byte_arr = BytesIO()
     img.save(img_byte_arr, format='JPEG')
     img_byte_arr = img_byte_arr.getvalue()
     base64_frame = base64.b64encode(img_byte_arr).decode('utf-8')
-    if not base64_frame.startswith('data:image'):
-        return f"data:image/jpeg;base64,{base64_frame}"
-    return base64_frame
+    return f"data:image/jpeg;base64,{base64_frame}"
+
 
 def classify_character(image):
     # image is a PIL.Image object
     COMPUTE_URL = "http://localhost:4000"
     # Convert PIL Image to bytes for sending
     img_byte_arr = BytesIO()
-    image = image.convert('RGB')
     image.save(img_byte_arr, format='JPEG')
-
     img_byte_arr = img_byte_arr.getvalue()
     
     response = requests.post(f"{COMPUTE_URL}/classify", files={"image": img_byte_arr})
@@ -83,25 +64,21 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         subtitle_buffer_counter = 0
         last_classified_charachter = None
-        predicted_word = ''
-
         while True:
             # Receive the binary frame data directly
-            frame_data = await websocket.receive_text()
+            frame_data = await websocket.receive_bytes()
             
-            image = base64_to_pil(frame_data)
-            # print(frame_data[:100])
-
             # Convert binary data to PIL Image
-            # image = Image.open(BytesIO(frame_data))
-
+            image = Image.open(BytesIO(frame_data))
+            
             frame_count += 1
             
             classifier_response = classify_character(image)
             character = classifier_response['character']
+            predicted_word = ''
 
             if character:
-                # print(character)
+                print(character)
                 # If we are getting CLASSIFY_BUFFER_LENGTH consecutive same character,
                 # then we are adding it to the subtitle
                 if character == last_classified_charachter:
@@ -110,22 +87,14 @@ async def websocket_endpoint(websocket: WebSocket):
                     subtitle_buffer_counter = 0
                     last_classified_charachter = character
                 if subtitle_buffer_counter == CLASSIFY_BUFFER_LENGTH:
-                    if character != '_': # Normal Characters
-                        subtitle += character
-                        predicted_word = llm.complete(subtitle.split(' ')[-1])
-                        subtitle_buffer_counter = 0
-                    else: # For the 'OK' character, meaning that the last predicted word was corrected
-                        subtitle = complete_subtitle(subtitle, predicted_word)
-                        print(': ', predicted_word)
-                        print(f'COMPLETED SUBTITLE: {subtitle}')
-
+                    subtitle += character
+                    predicted_word = llm.complete(subtitle.split(' ')[-1])
+                    subtitle_buffer_counter = 0
 
             if classifier_response['frame']:
                 last_frame_data = classifier_response['frame']
             else:
                 last_frame_data = pil_to_base64(image)
-
-            
 
             await websocket.send_json({
                 "frame_number": frame_count,
@@ -133,11 +102,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 "subtitle": subtitle,
                 "predicted": predicted_word
             })
-
             # print(f"Sent frame {frame_count}")
             
     except Exception as e:
-        print(traceback.print_exc())
         print(f"Error: {e}")
     finally:
         await websocket.close()
