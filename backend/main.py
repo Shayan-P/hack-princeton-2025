@@ -10,7 +10,7 @@ from io import BytesIO
 from PIL import Image
 import requests
 
-from llm_autocorrect import LLMAutocorrectWord
+from llm_autocorrect import LLMAutocorrectWord, complete_subtitle
 
 SUBTITLE_MAX_LENGTH = 30
 CLASSIFY_BUFFER_LENGTH = 10
@@ -64,6 +64,8 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         subtitle_buffer_counter = 0
         last_classified_charachter = None
+        predicted_word = ''
+        
         while True:
             # Receive the binary frame data directly
             frame_data = await websocket.receive_bytes()
@@ -75,10 +77,9 @@ async def websocket_endpoint(websocket: WebSocket):
             
             classifier_response = classify_character(image)
             character = classifier_response['character']
-            predicted_word = ''
 
             if character:
-                print(character)
+                # print(character)
                 # If we are getting CLASSIFY_BUFFER_LENGTH consecutive same character,
                 # then we are adding it to the subtitle
                 if character == last_classified_charachter:
@@ -87,9 +88,15 @@ async def websocket_endpoint(websocket: WebSocket):
                     subtitle_buffer_counter = 0
                     last_classified_charachter = character
                 if subtitle_buffer_counter == CLASSIFY_BUFFER_LENGTH:
-                    subtitle += character
-                    predicted_word = llm.complete(subtitle.split(' ')[-1])
-                    subtitle_buffer_counter = 0
+                    if character != '_': # Normal Characters
+                        subtitle += character
+                        predicted_word = llm.complete(subtitle.split(' ')[-1])
+                        subtitle_buffer_counter = 0
+                    else: # For the 'OK' character, meaning that the last predicted word was corrected
+                        subtitle = complete_subtitle(subtitle, predicted_word)
+                        print(': ', predicted_word)
+                        print(f'COMPLETED SUBTITLE: {subtitle}')
+
 
             if classifier_response['frame']:
                 last_frame_data = classifier_response['frame']

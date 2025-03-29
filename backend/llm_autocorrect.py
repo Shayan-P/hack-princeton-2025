@@ -85,6 +85,20 @@ class LLMAutocorrectWord:
         
         return res
 
+def complete_subtitle(subtitle: str, autocomplete_word: str):
+    # Change the last word to the autocomplete word
+    array_words = subtitle.split(' ')
+    array_words[-1] = autocomplete_word
+
+    #Accumulate to the new sentence
+    new_subtitle = ""
+    for word in array_words:
+        new_subtitle += word
+        new_subtitle += ' '
+    
+    return new_subtitle
+
+
 if __name__ == "__main__":
 
 
