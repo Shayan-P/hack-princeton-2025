@@ -18,7 +18,7 @@ import PIL
 app = FastAPI()
 
 
-predictor = SignLanguagePredictor('./model.p') # hardcoded for now
+predictor = SignLanguagePredictor('./model_with_ok.p') # hardcoded for now
 
 
 def pil_to_base64(img: Image.Image):
