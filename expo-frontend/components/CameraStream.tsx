@@ -92,8 +92,8 @@ export function CameraStream({ websocketUrl }: CameraStreamProps) {
           // console.log("sending photo", photo.base64)
           // const binaryData = Buffer.from(photo.base64, 'base64');
           // wsRef.current.send(binaryData);
+          console.log("sending photo")
           wsRef.current.send(photo.base64);
-          console.log(photo.base64);
         }
       } catch (error) {
         console.error('Error capturing frame:', error);
@@ -143,7 +143,7 @@ export function CameraStream({ websocketUrl }: CameraStreamProps) {
           <Text style={styles.heading}>Server Feed</Text>
           {serverImage ? (
             <Image
-              source={{ uri: `data:image/jpeg;base64,${serverImage}` }}
+              source={{ uri: serverImage.startsWith('data:image') ? serverImage : `data:image/jpeg;base64,${serverImage}` }}
               style={styles.serverFeed}
             />
           ) : (

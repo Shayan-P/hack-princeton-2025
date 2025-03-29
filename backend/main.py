@@ -29,14 +29,10 @@ def base64_to_pil(base64_string):
     image = Image.open(BytesIO(image_data))
     image = image.convert('RGB')
 
-
     img_byte_arr = BytesIO()
     image.save(img_byte_arr, format='JPEG')
     image = Image.open(img_byte_arr)
 
-    # image.show()
-
-    # breakpoint()
     return image
 
 def pil_to_base64(img: Image.Image):
@@ -44,8 +40,9 @@ def pil_to_base64(img: Image.Image):
     img.save(img_byte_arr, format='JPEG')
     img_byte_arr = img_byte_arr.getvalue()
     base64_frame = base64.b64encode(img_byte_arr).decode('utf-8')
-    return f"data:image/jpeg;base64,{base64_frame}"
-
+    if not base64_frame.startswith('data:image'):
+        return f"data:image/jpeg;base64,{base64_frame}"
+    return base64_frame
 
 def classify_character(image):
     # image is a PIL.Image object
@@ -130,7 +127,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
             
 
-            print("sending frame")
             await websocket.send_json({
                 "frame_number": frame_count,
                 "frame_data": last_frame_data,
