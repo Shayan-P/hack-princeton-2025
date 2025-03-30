@@ -132,7 +132,8 @@ class SignLanguagePredictor:
     ),
     gpu="A100",
     cpu=16,
-    memory=8768
+    memory=8768,
+    allow_concurrent_inputs=100
 )
 class CharacterClassifier:
     @modal.enter()

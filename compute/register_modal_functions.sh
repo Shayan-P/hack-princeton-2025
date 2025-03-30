@@ -22,6 +22,7 @@ for service_dir in *_service; do
     if [ -d "$service_dir" ]; then
         echo "Processing $service_dir..."
         cd "$service_dir"
+        poetry install
         if [ -f "register_modal_functions.py" ]; then
             poetry run modal $command register_modal_functions.py
         else
