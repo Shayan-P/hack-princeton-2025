@@ -7,10 +7,11 @@ import aiofiles
 import base64
 import json
 from io import BytesIO
+import numpy as np
 from PIL import Image
-import traceback
 import requests
-import base64
+import PIL
+import traceback
 
 from llm_autocorrect import LLMAutocorrectWord, complete_subtitle
 
@@ -21,24 +22,6 @@ llm = LLMAutocorrectWord(api = API_KEY)
 
 app = FastAPI()
 
-def base64_to_pil(base64_string):
-    if(base64_string.startswith('data:')):
-        base64_string = "".join(base64_string.split(',')[1:])
-
-    image_data = base64.b64decode(base64_string)
-    image = Image.open(BytesIO(image_data))
-    image = image.convert('RGB')
-
-
-    img_byte_arr = BytesIO()
-    image.save(img_byte_arr, format='JPEG')
-    image = Image.open(img_byte_arr)
-
-    # image.show()
-
-    # breakpoint()
-    return image
-
 def pil_to_base64(img: Image.Image):
     img_byte_arr = BytesIO()
     img.save(img_byte_arr, format='JPEG')
@@ -47,14 +30,34 @@ def pil_to_base64(img: Image.Image):
     return f"data:image/jpeg;base64,{base64_frame}"
 
 
+def classify_character_b64(image_b64):
+    # image is a PIL.Image object
+    COMPUTE_URL = "http://localhost:4000"
+    # Convert PIL Image to bytes for sending
+    # img_byte_arr = BytesIO()
+    # image.save(img_byte_arr, format='JPEG')
+    # img_byte_arr = img_byte_arr.getvalue()
+    
+    response = requests.post(f"{COMPUTE_URL}/classify", json = {
+        'base64image': image_b64
+    })
+    
+    if response.status_code != 200:
+        print(f"Error from compute service: Status {response.status_code}")
+        return None
+    try:
+        return response.json()
+    except (KeyError, ValueError) as e:
+        print(f"Error parsing response from compute service: {e}")
+        return None
+
+
 def classify_character(image):
     # image is a PIL.Image object
     COMPUTE_URL = "http://localhost:4000"
     # Convert PIL Image to bytes for sending
     img_byte_arr = BytesIO()
-    image = image.convert('RGB')
     image.save(img_byte_arr, format='JPEG')
-
     img_byte_arr = img_byte_arr.getvalue()
     
     response = requests.post(f"{COMPUTE_URL}/classify", files={"image": img_byte_arr})
@@ -87,21 +90,34 @@ async def websocket_endpoint(websocket: WebSocket):
         subtitle_buffer_counter = 0
         last_classified_charachter = None
         predicted_word = ''
-
+        
         while True:
             # Receive the binary frame data directly
-            frame_data = await websocket.receive_text()
+            frame_data_base64 = await websocket.receive_text()
+
+            frame_data_base64_cut = "".join(frame_data_base64.split(',')[1:])
+
+            # print(frame_data_base64[:100])
+            # print(frame_data_base64_cut[:100])
             
-            image = base64_to_pil(frame_data)
-            # print(frame_data[:100])
+            # print('SHIT')
+            
+            image = Image.open(BytesIO(
+                base64.b64decode(frame_data_base64_cut))
+                )
+            
 
-            # Convert binary data to PIL Image
-            # image = Image.open(BytesIO(frame_data))
-
+            # Convert the base64 image to Image
+            
+            # print('!!! IMAGE RECIEVED, SENDING IT TO COMPUTE')
+            
             frame_count += 1
             
-            classifier_response = classify_character(image)
+
+            classifier_response = classify_character_b64(frame_data_base64_cut)
             character = classifier_response['character']
+
+            print(f'! CLASSIFIER RECIEVED: {character}')
 
             if character:
                 # print(character)
@@ -124,24 +140,43 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
             if classifier_response['frame']:
-                last_frame_data = classifier_response['frame']
+                # print(classifier_response['frame'])
+                # image = PIL.Image.fromarray(np.array(classifier_response['frame']).astype('uint8'))
+                
+                # buffered = BytesIO()
+                # image.save(buffered, format="PNG")  # Specify the format, e.g., JPEG, PNG
+                # image_binary = buffered.getvalue()
+                
+                # last_frame_data = base64.b64encode(image_binary).decode('utf-8')
+
+                print(last_frame_data[:100])
+                # breakpoint()
+                # image.show()
+                # print('')
+                # breakpoint()
+                # image.show()
+                # breakpoint()
+                # last_frame_data = classifier_response['frame']
+                # arr = base64.b64decode(classifier_response['frame'])
+                # print(arr)
+                # image = PIL.Image.fromarray(arr)
+                # image.show()
+                # breakpoint()
+                # print(last_frame_data[:100])
             else:
-                last_frame_data = pil_to_base64(image)
+                last_frame_data = frame_data_base64_cut # pil_to_base64(image.convert('RGB'))
+                print(last_frame_data[:100])
 
-            
-
-            print("sending frame")
             await websocket.send_json({
                 "frame_number": frame_count,
-                "frame_data": last_frame_data,
+                # "frame_data": last_frame_data,
                 "subtitle": subtitle,
                 "predicted": predicted_word
             })
-
             # print(f"Sent frame {frame_count}")
             
     except Exception as e:
-        print(traceback.print_exc())
+        traceback.print_exc()
         print(f"Error: {e}")
     finally:
         await websocket.close()

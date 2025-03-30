@@ -1,15 +1,10 @@
 import os
 from google import genai
 from typing import List
+import dotenv
 
-class Message:
-    r"""
-    Consists of a user propmt with the model's generated answer which is 
-    in chunks since we are getting an stream.
-    """
-    def __init__(self, user_prompt: str = None):
-        self.user_prompt = user_prompt
-        self.model_chunks = [] # chunks received from the model
+dotenv.load_dotenv()
+
 class Message:
     r"""
     Consists of a user propmt with the model's generated answer which is 
@@ -41,18 +36,7 @@ class Message:
         return ret
 
 class LLMAutocorrectWord:
-class LLMAutocorrectWord:
 
-    WARMUP_PROMPT = \
-        "You are a helpful chatbot which will be helping automcompletion task." \
-        + " You will be provided with an incomplete word ending with '...' and your task is" \
-        + " to output the most likely completed word. Pay attention to the following examples:\n" \
-        + "input: HEL... output: HELLO\n" \
-        + "input: GOOD... output: GOODBYE\n" \
-        + "input: NAM... output: NAME\n" \
-        + "input: DANI... output: DANIEL\n" \
-        + "In the following prompts I will send you the inputs and you will write send the outputs.\n" \
-        + "PAY ATTENTION: your answer MUST be ONLY ONE word not more.\n" \
     WARMUP_PROMPT = \
         "You are a helpful chatbot which will be helping automcompletion task." \
         + " You will be provided with an incomplete word ending with '...' and your task is" \
