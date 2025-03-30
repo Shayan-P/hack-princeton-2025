@@ -117,9 +117,14 @@ async def websocket_endpoint(websocket: WebSocket):
             classifier_response = classify_character_b64(frame_data_base64_cut)
             character = classifier_response['character']
 
-            print(f'! CLASSIFIER RECIEVED: {character}')
+            # print(f'! CLASSIFIER RECIEVED: {character}')
 
             if character:
+                if character != '_':
+                    print(f'! CURRENT CHARACTER: {character}')
+                    await websocket.send_json({
+                                "current": character
+                            })
                 # print(character)
                 # If we are getting CLASSIFY_BUFFER_LENGTH consecutive same character,
                 # then we are adding it to the subtitle
@@ -128,18 +133,18 @@ async def websocket_endpoint(websocket: WebSocket):
                 else: # The character has changed
                     subtitle_buffer_counter = 0
                     last_classified_charachter = character
+                    
                 if subtitle_buffer_counter == CLASSIFY_BUFFER_LENGTH:
-                    if character != '_': # Normal Characters
+                    if character != '_' and (subtitle == '' or subtitle[-1] != character): # Normal Characters
                         subtitle += character
                         predicted_word = llm.complete(subtitle.split(' ')[-1])
                         subtitle_buffer_counter = 0
                     else: # For the 'OK' character, meaning that the last predicted word was corrected
                         subtitle = complete_subtitle(subtitle, predicted_word)
-                        print(': ', predicted_word)
                         print(f'COMPLETED SUBTITLE: {subtitle}')
 
 
-            if classifier_response['frame']:
+            # if classifier_response['frame']:
                 # print(classifier_response['frame'])
                 # image = PIL.Image.fromarray(np.array(classifier_response['frame']).astype('uint8'))
                 
@@ -148,8 +153,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 # image_binary = buffered.getvalue()
                 
                 # last_frame_data = base64.b64encode(image_binary).decode('utf-8')
-
-                print(last_frame_data[:100])
+                # pass
+                # print(last_frame_data[:100])
                 # breakpoint()
                 # image.show()
                 # print('')
@@ -163,15 +168,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 # image.show()
                 # breakpoint()
                 # print(last_frame_data[:100])
-            else:
-                last_frame_data = frame_data_base64_cut # pil_to_base64(image.convert('RGB'))
-                print(last_frame_data[:100])
+            # else:
+                #last_frame_data = frame_data_base64_cut # pil_to_base64(image.convert('RGB'))
+                # print(last_frame_data[:100])
 
             await websocket.send_json({
                 "frame_number": frame_count,
                 # "frame_data": last_frame_data,
                 "subtitle": subtitle,
-                "predicted": predicted_word
+                "predicted": predicted_word,
+                "current": character
             })
             # print(f"Sent frame {frame_count}")
             

@@ -1,6 +1,6 @@
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { useState, useRef, useEffect } from 'react';
-import { Button, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
+import { Button, StyleSheet, Text, TouchableOpacity, View, Image, Dimensions } from 'react-native';
 import { Buffer } from 'buffer';
 
 interface CameraStreamProps {
@@ -13,12 +13,19 @@ export function CameraStream({ websocketUrl }: CameraStreamProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const isStreamingRef = useRef(false);
   const [serverImage, setServerImage] = useState<string | null>(null);
-  const [subtitle, setSubtitle] = useState('');
+  const [subtitle, setSubtitle] = useState('Sign Language Subtitle Box');
+  const [prediction, setPrediction] = useState('Word Prediction With LLM');
+  const [currentLetter, setCurrentLetter] = useState('Current Recognized Letter');
   const [connectionStatus, setConnectionStatus] = useState('Not connected');
+  const capitalAlphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 
   const cameraRef = useRef<any>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const streamIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+  const squareSize = Math.min(screenWidth, screenHeight / 2);
+
 
   useEffect(() => {
     return () => {
@@ -29,6 +36,7 @@ export function CameraStream({ websocketUrl }: CameraStreamProps) {
 
   const connectToServer = () => {
     try {
+      setConnectionStatus('Connecting to server...');
       wsRef.current = new WebSocket(websocketUrl);
       
       wsRef.current.onopen = () => {
@@ -38,11 +46,31 @@ export function CameraStream({ websocketUrl }: CameraStreamProps) {
       wsRef.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          if (data.current) {
+            console.log(`received current letter ${data.current}`);
+            setCurrentLetter(data.current)
+          }
           if (data.frame_data) {
             setServerImage(data.frame_data);
           }
           if (data.subtitle) {
-            setSubtitle(data.subtitle);
+            // console.log(`${data.subtitle}`)
+            console.log('SUBTITLE')
+            console.log(data.subtitle)
+            let badLetters = ['\n']
+            for(const letter of data.subtitle){
+              if(!capitalAlphabet.includes(letter)){
+                badLetters.push(letter)
+              }
+            }
+            for(const letter of badLetters){
+              data.subtitle = data.subtitle.replace(letter, ' ')
+            }
+            setSubtitle(data.subtitle.replace('\n', ' '));
+          }
+          if (data.predicted) {
+            // console.log(`received prediction ${data.predicted}`);
+            setPrediction(data.predicted)
           }
         } catch (error) {
           console.error('Error processing server message:', error);
@@ -51,7 +79,15 @@ export function CameraStream({ websocketUrl }: CameraStreamProps) {
 
       wsRef.current.onerror = (error) => {
         console.error('WebSocket error:', error);
-        setConnectionStatus('Connection error');
+        setConnectionStatus(`Connection error: ${'Failed to connect to server'}`);
+        
+        // Attempt to reconnect after 5 seconds
+        setTimeout(() => {
+          if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+            console.log('Attempting to reconnect...');
+            connectToServer();
+          }
+        }, 5000);
       };
 
       wsRef.current.onclose = () => {
@@ -61,11 +97,25 @@ export function CameraStream({ websocketUrl }: CameraStreamProps) {
           clearInterval(streamIntervalRef.current);
           streamIntervalRef.current = null;
         }
+
+        // Attempt to reconnect after 5 seconds
+        setTimeout(() => {
+          if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+            console.log('Attempting to reconnect...');
+            connectToServer();
+          }
+        }, 5000);
       };
 
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
-      setConnectionStatus('Connection failed');
+      setConnectionStatus(`Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // Attempt to reconnect after 5 seconds
+      setTimeout(() => {
+        console.log('Attempting to reconnect...');
+        connectToServer();
+      }, 5000);
     }
   };
 
@@ -93,7 +143,7 @@ export function CameraStream({ websocketUrl }: CameraStreamProps) {
           // const binaryData = Buffer.from(photo.base64, 'base64');
           // wsRef.current.send(binaryData);
           wsRef.current.send(photo.base64);
-          console.log(photo.base64);
+          // console.log(photo.base64);
         }
       } catch (error) {
         console.error('Error capturing frame:', error);
@@ -132,14 +182,16 @@ export function CameraStream({ websocketUrl }: CameraStreamProps) {
       <View style={styles.streamsContainer}>
         <View style={styles.streamBox}>
           <Text style={styles.heading}>Camera Feed</Text>
-          <CameraView 
-            ref={cameraRef}
-            style={styles.camera} 
-            facing={facing}
-          />
+          <View style={[styles.cameraContainer, { width: squareSize }]}>
+            <CameraView 
+              ref={cameraRef}
+              style={styles.camera} 
+              facing={facing}
+            />
+          </View>
         </View>
         
-        <View style={styles.streamBox}>
+        {/* <View style={styles.streamBox}>
           <Text style={styles.heading}>Server Feed</Text>
           {serverImage ? (
             <Image
@@ -149,11 +201,20 @@ export function CameraStream({ websocketUrl }: CameraStreamProps) {
           ) : (
             <View style={styles.serverFeed} />
           )}
-        </View>
+        </View> */}
+      </View>
+
+
+      <View style={styles.currentLetter}>
+        <Text style={styles.currentLetterText}>{currentLetter}</Text>
       </View>
 
       <View style={styles.subtitles}>
         <Text style={styles.subtitleText}>{subtitle}</Text>
+      </View>
+
+      <View style={styles.predictions}>
+        <Text style={styles.predictionsText}>{prediction}</Text>
       </View>
 
       <View style={styles.controls}>
@@ -189,9 +250,12 @@ const styles = StyleSheet.create({
     width: '48%',
   },
   heading: {
-    fontSize: 18,
+    fontSize: 25,
     color: '#888',
     marginBottom: 10,
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontFamily: 'Arial',
   },
   camera: {
     flex: 1,
@@ -205,6 +269,8 @@ const styles = StyleSheet.create({
   controls: {
     marginTop: 20,
     gap: 10,
+    alignSelf: 'center',
+    width: 'auto',
   },
   status: {
     marginTop: 20,
@@ -217,12 +283,38 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   subtitles: {
-    marginTop: 10,
     padding: 10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 101, 8, 0.5)',
     borderRadius: 4,
+    width: '50%',
+    alignSelf: 'center',
+  },
+  currentLetter: {
+    padding: 10,
+    backgroundColor: 'rgba(10, 0, 78, 0.5)',
+    borderRadius: 4,
+    width: '50%',
+    alignSelf: 'center',
+    marginBottom: 10,
+  },
+  predictions: {
+    marginTop: 10,
+    marginBottom: 'auto',
+    padding: 10,
+    backgroundColor: 'rgba(84, 0, 0, 0.5)',
+    borderRadius: 4,
+    width: '50%',
+    alignSelf: 'center',
   },
   subtitleText: {
+    color: 'white',
+    textAlign: 'center',
+  },
+  predictionsText: {
+    color: 'white',
+    textAlign: 'center',
+  },
+  currentLetterText: {
     color: 'white',
     textAlign: 'center',
   },
@@ -240,5 +332,11 @@ const styles = StyleSheet.create({
   flipText: {
     color: 'white',
     fontSize: 16,
+  },
+  cameraContainer: {
+    aspectRatio: 1, // Forces a square shape
+    alignSelf: 'center', // Centers the container horizontally
+    borderRadius: 8,
+    overflow: 'hidden',  // This ensures the camera view respects the border radius
   },
 });
