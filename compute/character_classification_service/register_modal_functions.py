@@ -180,15 +180,15 @@ class CharacterClassifier:
 
         character, newframe = self.predictor.predict(frame)
 
-        # if newframe is not None:
-        #     newframe = newframe.tolist()
-        #     image = PIL.Image.fromarray(np.array(newframe).astype('uint8'))
+        if newframe is not None:
+            newframe = newframe.tolist()
+            image = PIL.Image.fromarray(np.array(newframe).astype('uint8'))
             
-        #     buffered = BytesIO()
-        #     image.save(buffered, format="PNG")  # Specify the format, e.g., JPEG, PNG
-        #     image_binary = buffered.getvalue()
-            
-        #     newframe = base64.b64encode(image_binary).decode('utf-8')
+            buffered = BytesIO()
+            image.save(buffered, format="PNG")  # Specify the format, e.g., JPEG, PNG
+            image_binary = buffered.getvalue()
+            new_image = PIL.Image.open(BytesIO(image_binary))
+            newframe = base64.b64encode(image_binary).decode('utf-8')
 
 
         # # Create a PIL Image from the bytes
@@ -204,12 +204,12 @@ class CharacterClassifier:
         # base64_frame = pil_to_base64(PIL.Image.fromarray(frame_with_prediction))
 
         # print('predicted character', prediction)
-        if character is not None:
-            print(character)
+        # if character is not None:
+        #     print(character)
         if newframe is None:
             return {"character": character, "frame": ''}
         else:
-            return {"character": character, "frame": ''}
+            return {"character": character, "frame": newframe}
 
 
 @app.local_entrypoint()

@@ -6,7 +6,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { CameraStream } from '@/components/CameraStream';
 
-const WEBSOCKET_URL = 'ws://localhost:8000/ws'; // todo later change it to the current server url
+const WEBSOCKET_URL = 'ws://localhost:8000/api/ws'; // todo later change it to the current server url
 
 export default function HomeScreen() {
   return (

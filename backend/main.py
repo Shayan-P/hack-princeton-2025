@@ -78,7 +78,7 @@ def classify_character(image):
 UPLOAD_DIR = "received_frames"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-@app.websocket("/ws")
+@app.websocket("/api/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     
@@ -152,8 +152,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 # image.save(buffered, format="PNG")  # Specify the format, e.g., JPEG, PNG
                 # image_binary = buffered.getvalue()
                 
-                # last_frame_data = base64.b64encode(image_binary).decode('utf-8')
-
+                last_frame_data = classifier_response['frame']
+                print("frame from modal:")
                 print(last_frame_data[:100])
                 # breakpoint()
                 # image.show()
@@ -174,7 +174,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             await websocket.send_json({
                 "frame_number": frame_count,
-                # "frame_data": last_frame_data,
+                "frame_data": last_frame_data,
                 "subtitle": subtitle,
                 "predicted": predicted_word
             })
