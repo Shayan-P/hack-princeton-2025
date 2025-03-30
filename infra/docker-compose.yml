@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - api
+
+  frontend:
+    # Your frontend service configuration
+    image: your-frontend-image
+    expose:
+      - 4000
+
+  api:
+    # Your API service configuration
+    image: your-api-image
+    expose:
+      - 8000
+
+volumes:
+  ssl: 
