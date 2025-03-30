@@ -38,6 +38,7 @@ export function CameraStream({ websocketUrl }: CameraStreamProps) {
       wsRef.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          console.log("received data", data.frame_number)
           if (data.frame_data) {
             setServerImage(data.frame_data);
           }
@@ -93,12 +94,11 @@ export function CameraStream({ websocketUrl }: CameraStreamProps) {
           // const binaryData = Buffer.from(photo.base64, 'base64');
           // wsRef.current.send(binaryData);
           wsRef.current.send(photo.base64);
-          console.log(photo.base64);
         }
       } catch (error) {
         console.error('Error capturing frame:', error);
       }
-    }, 100);
+    }, 500); // 500ms. decrease later?
   };
 
   const stopStreaming = () => {

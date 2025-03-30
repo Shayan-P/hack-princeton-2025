@@ -12,6 +12,7 @@ from PIL import Image
 import requests
 import PIL
 import traceback
+from compute_stub import CharacterClassifier
 
 from llm_autocorrect import LLMAutocorrectWord, complete_subtitle
 
@@ -19,6 +20,7 @@ SUBTITLE_MAX_LENGTH = 30
 CLASSIFY_BUFFER_LENGTH = 10
 API_KEY = os.getenv('GEMINI_API')
 llm = LLMAutocorrectWord(api = API_KEY)
+character_classifier = CharacterClassifier()
 
 app = FastAPI()
 
@@ -30,9 +32,10 @@ def pil_to_base64(img: Image.Image):
     return f"data:image/jpeg;base64,{base64_frame}"
 
 
+# TODO: remove this function
 def classify_character_b64(image_b64):
     # image is a PIL.Image object
-    COMPUTE_URL = "http://localhost:4000"
+    # COMPUTE_URL = "http://localhost:4000"
     # Convert PIL Image to bytes for sending
     # img_byte_arr = BytesIO()
     # image.save(img_byte_arr, format='JPEG')
@@ -104,7 +107,7 @@ async def websocket_endpoint(websocket: WebSocket):
             
             image = Image.open(BytesIO(
                 base64.b64decode(frame_data_base64_cut))
-                )
+            )
             
 
             # Convert the base64 image to Image
@@ -114,9 +117,11 @@ async def websocket_endpoint(websocket: WebSocket):
             frame_count += 1
             
 
-            classifier_response = classify_character_b64(frame_data_base64_cut)
+            # classifier_response = classify_character_b64(frame_data_base64_cut)
+            classifier_response = character_classifier.classify_character.remote(image)
             character = classifier_response['character']
 
+            print("frame count: ", frame_count)
             print(f'! CLASSIFIER RECIEVED: {character}')
 
             if character:
