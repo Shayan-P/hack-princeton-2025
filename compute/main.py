@@ -64,6 +64,15 @@ async def classify_character(data: DataModel):
 
     character, newframe = predictor.predict(frame)
 
+    if newframe is not None:
+        newframe = newframe.tolist()
+        image = PIL.Image.fromarray(np.array(newframe).astype('uint8'))
+        
+        buffered = BytesIO()
+        image.save(buffered, format="PNG")  # Specify the format, e.g., JPEG, PNG
+        image_binary = buffered.getvalue()
+        
+        newframe = base64.b64encode(image_binary).decode('utf-8')
 
 
     # # Create a PIL Image from the bytes
