@@ -1,6 +1,6 @@
 # hack-princeton-2025
 
-# installation
+## installation
 
 - Install Poetry (Python package manager)
 - Install nvm (Node Version Manager)
@@ -23,6 +23,10 @@ cd compute
 poetry install
 ```
 
-
+## word-level translation
+```cmd
+cd compute
+python run.py
+```
 
 
